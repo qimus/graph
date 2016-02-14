@@ -3,11 +3,6 @@ namespace app\db;
 
 class Connection
 {
-    const QUERY_TYPE_SELECT = 'select';
-    const QUERY_TYPE_UPDATE = 'update';
-    const QUERY_TYPE_INSERT = 'insert';
-    const QUERY_TYPE_DELETE = 'delete';
-
     /**
      * @var array
      */

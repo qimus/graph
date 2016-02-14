@@ -34,6 +34,19 @@ class NodesGateway extends AbstractGateway
     }
 
     /**
+     * @param string $name
+     * @return mixed
+     */
+    public function getNodeByName($name)
+    {
+        $node = $this
+            ->query('SELECT * FROM nodes WHERE "name" = :name', [':name' => $name])
+            ->first();
+
+        return $node;
+    }
+
+    /**
      * Добавление новой ноды в граф
      *
      * @param string $name

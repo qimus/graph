@@ -7,7 +7,7 @@ function GraphRenderer(viewPortId) {
 
 GraphRenderer.prototype.init = function (viewPortId) {
     this.arbor = arbor.ParticleSystem(1000, 400, 1);
-    this.arbor.parameters({gravity:true});
+    this.arbor.parameters({gravity:false});
     this.arbor.renderer = Renderer(viewPortId) ;
 };
 
