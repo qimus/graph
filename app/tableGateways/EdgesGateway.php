@@ -46,7 +46,7 @@ class EdgesGateway extends AbstractGateway
                 ':nodeEnd' => $node1
             ]);
 
-        return $result->count() > 0;
+        return !$result->isEmpty();
     }
 
     /**
@@ -120,5 +120,17 @@ class EdgesGateway extends AbstractGateway
                 ) SELECT * from search_parent sp WHERE sp."end" = :nodeId';
 
         return $this->query($sql, [':nodeId' => $nodeId])->fetchAll();
+    }
+
+    /**
+     * @param int[] $nodeIds
+     * @return array
+     */
+    public function getByNodes($nodeIds)
+    {
+        $nodeIdsStr = implode(', ', array_map('intval', $nodeIds));
+
+        return $this->query("SELECT * FROM edges WHERE start IN ($nodeIdsStr) AND \"end\" IN ($nodeIdsStr)")
+            ->fetchAll();
     }
 }

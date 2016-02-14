@@ -129,8 +129,21 @@ class Graph
         return count($nodeParents) == count($parentIds);
     }
 
-    public function changePosition()
+    /**
+     * Возвращает данные для построения визуального графа
+     *
+     * @return array
+     */
+    public function getNodesWithEdges()
     {
+        $nodes = $this->nodesGateway->getAll();
+        $nodeIds = ArrayHelper::getColumn($nodes, 'id');
 
+        $edges = $this->edgesGateway->getByNodes($nodeIds);
+
+        return [
+            'nodes' => $nodes,
+            'edges' => $edges
+        ];
     }
 }

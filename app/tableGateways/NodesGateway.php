@@ -67,4 +67,17 @@ class NodesGateway extends AbstractGateway
 
         return $this->query("SELECT * FROM nodes WHERE id IN ($ids)")->fetchAll();
     }
+
+    /**
+     * @param int $limit
+     * @param int $offset
+     * @return array
+     */
+    public function getAll($limit = 100, $offset = 0)
+    {
+        return $this->query("SELECT * FROM nodes LIMIT :limit OFFSET :offset", [
+            ':limit' => $limit, ':offset' => $offset
+            ]
+        )->fetchAll();
+    }
 }

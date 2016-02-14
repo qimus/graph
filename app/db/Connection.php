@@ -23,7 +23,6 @@ class Connection
      */
     private $lastQuery;
 
-    private $lastInsertInfo = [];
 
     /**
      * Database constructor.

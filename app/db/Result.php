@@ -62,6 +62,14 @@ class Result implements \Iterator
     }
 
     /**
+     * @return bool
+     */
+    public function isEmpty()
+    {
+        return $this->rowCount == 0;
+    }
+
+    /**
      * @return array
      */
     public function fetchAll()

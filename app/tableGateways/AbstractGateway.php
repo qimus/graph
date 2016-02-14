@@ -19,12 +19,6 @@ abstract class AbstractGateway
     protected $connection;
 
     /**
-     * primary key
-     * @var string
-     */
-    protected $pk = 'id';
-
-    /**
      * AbstractGateway constructor.
      * @param Connection $connection
      */
