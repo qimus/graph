@@ -9,6 +9,8 @@
 namespace app\tableGateways;
 
 use app\exceptions\Base;
+use app\exceptions\DatabaseException;
+use app\exceptions\LoopException;
 
 class EdgesGateway extends AbstractGateway
 {
@@ -24,29 +26,39 @@ class EdgesGateway extends AbstractGateway
      * @param int $nodeId
      * @return mixed|null
      */
-    public function findEdgeByNode($nodeId)
+    public function findLastNodeEdge($nodeId)
     {
         return $this
-            ->query("SELECT * FROM edges WHERE start = :nodeId ORDER BY pos ASC", [':nodeId' => $nodeId])
+            ->query("SELECT * FROM edges WHERE start = :nodeId ORDER BY pos DESC LIMIT 1", [':nodeId' => $nodeId])
             ->first();
     }
 
     /**
      * Проверка существования обратной связи для переданных узлов
      *
-     * @param int $node1
-     * @param int $node2
-     * @return bool
+     * @param int $from
+     * @param int $to
+     *
+     * @return int
      */
-    public function hasLoopEdge($node1, $node2)
+    public function hasLoop($from, $to)
     {
-        $result = $this
-            ->query('SELECT * from edges WHERE start = :nodeStart AND "end" = :nodeEnd', [
-                ':nodeStart' => $node2,
-                ':nodeEnd' => $node1
-            ]);
+        if ($from == $to) {
+            return 1;
+        }
 
-        return !$result->isEmpty();
+        $sql = 'WITH RECURSIVE r as (
+                    SELECT "start", "end"
+                    FROM edges
+                    WHERE "end" = :from
+                  UNION
+                      SELECT e.start, e."end"
+                      FROM r, edges e
+                      WHERE r.start = e."end"
+                )
+                SELECT count(*) FROM r WHERE r.start = :to;';
+
+        return $this->query($sql, [':from' => $from, ':to' => $to])->scalar();
     }
 
     /**
@@ -58,11 +70,11 @@ class EdgesGateway extends AbstractGateway
      */
     public function addEdge($nodeFrom, $nodeTo)
     {
-        $existsEdges = $this->findEdgeByNode($nodeFrom);
+        $existsEdges = $this->findLastNodeEdge($nodeFrom);
         $pos = !empty($existsEdges['pos']) ? $existsEdges['pos'] + 1 : 1;
 
-        if ($this->hasLoopEdge($nodeFrom, $nodeTo)) {
-            throw new Base('Circle link detected');
+        if ($this->hasLoop($nodeFrom, $nodeTo)) {
+            throw new LoopException('Circle link detected');
         }
 
         $this->insert(['start' => $nodeFrom, '"end"' => $nodeTo, 'pos' => $pos]);
@@ -84,20 +96,34 @@ class EdgesGateway extends AbstractGateway
     /**
      * Поиск дочерних элементов
      *
-     * @param $nodeId
+     * @param int $nodeId
      * @return array
      */
     public function findChildren($nodeId)
     {
-        $sql = 'WITH RECURSIVE search_children(start, "end") AS (
-                    SELECT e.start, e."end"
-                    FROM edges e
-                  UNION ALL
-                    SELECT e.start, sg."end"
-                    FROM edges e, search_children sg
-                    WHERE e."end" = sg.start
-                ) SELECT * from search_children WHERE start = :nodeId';
+        $sql = 'WITH RECURSIVE r(start, "end", pos) AS (
+                      SELECT e.start, e."end", pos, 1 as level
+                          FROM edges e
+                          WHERE e.start = :nodeId
+                      UNION ALL
+                          SELECT e.start, e."end", e.pos, level + 1 as level
+                          FROM edges e, r
+                          WHERE e.start = r."end"
+                    ) SELECT * from r ORDER BY level, pos';
 
+
+        return $this->query($sql, [':nodeId' => $nodeId])->fetchAll();
+    }
+
+    /**
+     * Возвращает прямых потомков
+     *
+     * @param int $nodeId
+     * @return array
+     */
+    public function findDirectChildren($nodeId)
+    {
+        $sql = 'SELECT * FROM edges WHERE start=:nodeId ORDER BY pos';
 
         return $this->query($sql, [':nodeId' => $nodeId])->fetchAll();
     }
@@ -120,6 +146,42 @@ class EdgesGateway extends AbstractGateway
                 ) SELECT * from search_parent sp WHERE sp."end" = :nodeId';
 
         return $this->query($sql, [':nodeId' => $nodeId])->fetchAll();
+    }
+
+    /**
+     * @param int $start
+     * @param int $end
+     * @param int $pos
+     * @return int
+     */
+    public function updatePosition($start, $end, $pos)
+    {
+        $start = (int)$start;
+        $end = (int)$end;
+
+        return $this->update(['pos' => $pos], "start = $start AND \"end\" = $end");
+    }
+
+    /**
+     * Обновление нескольких позиций
+     *
+     * @param array $positions
+     * @throws DatabaseException
+     */
+    public function updatePositions(array $positions)
+    {
+        $this->getConnection()->beginTransaction();
+
+        try {
+            foreach ($positions as $positionData) {
+                $this->updatePosition($positionData['start'], $positionData['end'], $positionData['pos']);
+            }
+        } catch (DatabaseException $e) {
+            $this->getConnection()->rollBack();
+            throw new DatabaseException($e->getMessage());
+        }
+
+        $this->connection->commit();
     }
 
     /**

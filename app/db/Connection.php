@@ -1,6 +1,8 @@
 <?php
 namespace app\db;
 
+use app\exceptions\DatabaseException;
+
 class Connection
 {
     /**
@@ -94,7 +96,7 @@ class Connection
      * @param string $sql
      * @param array $params
      * @return Result
-     * @throws DbException
+     * @throws DatabaseException
      */
     public function query($sql, array $params = null)
     {
@@ -107,7 +109,7 @@ class Connection
         $this->lastQuery = $sql;
 
         if (false === $stmt) {
-            throw new DbException($this->connection->errorInfo()[2]);
+            throw new DatabaseException($this->connection->errorInfo()[2]);
         }
 
         return $this->createResult($stmt);
@@ -128,11 +130,17 @@ class Connection
      * @param string $query
      * @param array $params
      * @return int
+     * @throws DatabaseException
      */
     public function execute($query, array $params = null)
     {
         $stmt = $this->connection->prepare($query);
-        $stmt->execute($params);
+        $res = $stmt->execute($params);
+
+        if (false === $res) {
+            throw new DatabaseException($stmt->errorInfo()[2]);
+        }
+
         $this->lastQuery = $stmt->queryString;
 
         return $stmt->rowCount();
@@ -144,5 +152,29 @@ class Connection
     public function getLastQuery()
     {
         return $this->lastQuery;
+    }
+
+    /**
+     * Стартуем транзакцию
+     */
+    public function beginTransaction()
+    {
+        $this->connection->beginTransaction();
+    }
+
+    /**
+     * Коммит транзакции
+     */
+    public function commit()
+    {
+        $this->connection->commit();
+    }
+
+    /**
+     * Откат транзакции
+     */
+    public function rollBack()
+    {
+        $this->connection->rollBack();
     }
 }

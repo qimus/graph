@@ -93,6 +93,15 @@ class Result implements \Iterator
         return $this->currentData;
     }
 
+    public function scalar()
+    {
+        if (empty($this->resultRows)) {
+            return null;
+        }
+
+        return reset($this->resultRows[0]);
+    }
+
     /**
      * @inheritdoc
      */

@@ -101,6 +101,14 @@ abstract class AbstractGateway
     }
 
     /**
+     * @return Connection
+     */
+    public function getConnection()
+    {
+        return $this->connection;
+    }
+
+    /**
      * Возвращает название таблицы
      *
      * @return string

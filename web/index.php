@@ -15,30 +15,37 @@ $nodesGateway = new \app\tableGateways\NodesGateway($connection);
 
 $graph = new \app\Graph($nodesGateway, $edgesGateway);
 
-//$nodesList = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'];
-//$links = [
-//    ['A', 'D'],
-//    ['B', 'D'],
-//    ['B', 'E'],
-//    ['C', 'E'],
-//    ['D', 'F'],
-//    ['D', 'G'],
-//    ['E', 'G'],
-//    ['E', 'H'],
-//    ['G', 'I'],
-//    ['G', 'J'],
-//    ['G', 'K']
-//];
-//
-//
-//
-//foreach ($nodesList as $nodeName) {
-//    $graph->addNode($nodeName);
-//}
-//
-//foreach ($links as $link) {
-//    $graph->addLink($nodesGateway->getNodeIdByName($link[0]), $nodesGateway->getNodeIdByName($link[1]));
-//}
+$edgesGateway->delete(null);
+$nodesGateway->delete(null);
+
+$connection->execute('ALTER SEQUENCE nodes_id_seq RESTART WITH 1');
+
+$nodesList = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'];
+$links = [
+    ['A', 'D'],
+    ['B', 'D'],
+    ['B', 'E'],
+    ['C', 'E'],
+    ['D', 'F'],
+    ['D', 'G'],
+    ['E', 'G'],
+    ['E', 'H'],
+    ['G', 'I'],
+    ['G', 'J'],
+    ['G', 'K']
+];
+
+
+
+foreach ($nodesList as $nodeName) {
+    $graph->addNode($nodeName);
+}
+
+foreach ($links as $link) {
+    $graph->addLink($nodesGateway->getNodeIdByName($link[0]), $nodesGateway->getNodeIdByName($link[1]));
+}
+
+$graph->swapPositions(7, 9, 11);
 
 $childsNodes = $graph->getChilds($nodesGateway->getNodeIdByName('D'));
 $parentNodes = $graph->getParents($nodesGateway->getNodeIdByName('G'));

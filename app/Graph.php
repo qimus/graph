@@ -8,6 +8,9 @@
 
 namespace app;
 
+use app\exceptions\Base;
+use app\exceptions\DatabaseException;
+use app\exceptions\GraphException;
 use app\helpers\ArrayHelper;
 use app\tableGateways\EdgesGateway;
 use app\tableGateways\NodesGateway;
@@ -127,5 +130,97 @@ class Graph
         $nodeParents = array_intersect($parentIds, ArrayHelper::getColumn($parents, 'start'));
 
         return count($nodeParents) == count($parentIds);
+    }
+
+    /**
+     * Смена порядка узла
+     *
+     * @param int $parentId
+     * @param int $nodeId
+     * @param int $position
+     * @return bool|int
+     *
+     * @throws GraphException
+     */
+    public function changePosition($parentId, $nodeId, $position)
+    {
+        $directChilds = $this->edgesGateway->findDirectChildren($parentId);
+
+        if (empty($directChilds)) {
+            throw new GraphException('Child nodes not found.');
+        }
+
+        $childNodeIds = ArrayHelper::getColumn($directChilds, 'end');
+        if (!in_array($nodeId, $childNodeIds)) {
+            throw new GraphException('Specified node is not a child.');
+        }
+
+        $oldNodeIdHasSamePosition = null;  //id ноды имеющей переданную позицию
+        $currentPositionNodeId = null; //текущая позиция узла
+        foreach ($directChilds as $child) {
+            //уже есть дочерний узел с переданной позицией
+            if ($child['pos'] == $position) {
+                $oldNodeIdHasSamePosition = $child['end'];
+            } elseif ($child['end'] == $nodeId) {
+                $currentPositionNodeId = $child['pos'];
+            }
+        }
+
+        //переданная позиция является текущей для узла
+        if ($currentPositionNodeId == $position) {
+            return true;
+        }
+
+        $positions = [
+            [
+                'start' => $parentId,
+                'end' => $nodeId,
+                'pos' => $position
+            ]
+        ];
+
+        if ($oldNodeIdHasSamePosition) {
+            $positions[] = [
+                'start' => $parentId,
+                'end' => $oldNodeIdHasSamePosition,
+                'pos' => $currentPositionNodeId
+            ];
+        }
+
+        $this->edgesGateway->updatePositions($positions);
+
+        return true;
+    }
+
+    /**
+     * Поменять позиции местами
+     *
+     * @param int $parentId
+     * @param int $nodeId1
+     * @param int $nodeId2
+     * @throws DatabaseException
+     * @throws GraphException
+     */
+    public function swapPositions($parentId, $nodeId1, $nodeId2)
+    {
+        $directChilds = $this->edgesGateway->findDirectChildren($parentId);
+
+        if (empty($directChilds)) {
+            throw new GraphException('Child nodes not found.');
+        }
+
+        $childNodeIds = ArrayHelper::getColumn($directChilds, 'end');
+        if (!in_array($nodeId1, $childNodeIds) || !in_array($nodeId2, $childNodeIds)) {
+            throw new GraphException('Specified node is not a child.');
+        }
+
+        $sourcePosition = ArrayHelper::first(ArrayHelper::find($directChilds, ['end' => $nodeId1]));
+        $targetPosition = ArrayHelper::first(ArrayHelper::find($directChilds, ['end' => $nodeId2]));
+
+        $tmpPos = $sourcePosition['pos'];
+        $sourcePosition['pos'] = $targetPosition['pos'];
+        $targetPosition['pos'] = $tmpPos;
+
+        $this->edgesGateway->updatePositions([$sourcePosition, $targetPosition]);
     }
 }
